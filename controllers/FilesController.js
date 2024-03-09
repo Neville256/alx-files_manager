@@ -136,7 +136,7 @@ export default class FilesController {
 
     const filter = {
       _id: ObjectId(req.params.id),
-      userId = ObjectId(user._id.toString()),
+      userId: ObjectId(user._id.toString()),
     }
     const doc = await dbClient.nbFiles().findOne(doc);
     if (!doc) {
@@ -145,11 +145,50 @@ export default class FilesController {
     }
 
     await dbClient.nbFiles().updateOne( doc,
-	    { $set: { isPublic: 'true' } });
+	    { $set: { isPublic: true } });
 
     res.status(200).json({doc});
   }
 
   static async putUnpublish(req, res) {
+    const token = req.headers.authorization;
+    const user = await redisClient.get(`auth_${token}`);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized'});
+      return;
     }
+  
+    const doc = await dbClient.nbFiles().findOne(doc);
+    if (!doc) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+
+    await dbClient.nbFiles().updateOne( doc,
+            { $set: { isPublic: false } });
+
+    res.status(200).json({doc});
+  }}
+
+
+  static async getFile(req, res) {
+    const token = req.headers.authorization;
+    const user = await redisClient.get(`auth_${token}`);
+
+    const filter = {
+      _id: ObjectId(req.params.id),
+      userId = ObjectId(user._id.toString()),
+    }
+    const file = await dbClient.nbFiles().findOne(filter);
+    if (!file || file.isPublic === false && file.userId.toString() !== user.id) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    
+  
+    if (file === 'folder') {
+      res.status(400).json({ error: "A folder doesn't have content" });
+      return;
+    }
+  }
 }
