@@ -57,6 +57,12 @@ const routeController = (app) => {
   router.post('/files/:id/data', (req, res) => {
     FilesController.getFile(req, res);
   });
+
+  //task 5
+  router.post('/files', (req, res) => {
+    FilesController.postUpload(req, res);
+  });
+  
 };
 
 export default routeController;
