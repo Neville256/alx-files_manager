@@ -7,7 +7,7 @@ import { promises as fsPromises } from 'fs';
 
 export default class FilesController {
   static async postUpload(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const name = req.body.name;
     const type = req.body.type;
     const parentId = req.body.parentId ? req.body.parentId : 0;
@@ -72,7 +72,7 @@ export default class FilesController {
   }
   
   static async getShow(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const user = await redisClient.get(`auth_${token}`);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized'});
@@ -90,7 +90,7 @@ export default class FilesController {
   }
 
   static async getIndex(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const user = await redisClient.get(`auth_${token}`);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized'});
@@ -127,7 +127,7 @@ export default class FilesController {
   }
 
   static async putPublish(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const user = await redisClient.get(`auth_${token}`);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized'});
@@ -151,7 +151,7 @@ export default class FilesController {
   }
 
   static async putUnpublish(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const user = await redisClient.get(`auth_${token}`);
     if (!user) {
       res.status(401).json({ error: 'Unauthorized'});
@@ -168,27 +168,28 @@ export default class FilesController {
             { $set: { isPublic: false } });
 
     res.status(200).json({doc});
-  }}
+  }
 
 
   static async getFile(req, res) {
-    const token = req.headers.authorization;
+    const token = req.headers.X-Token;
     const user = await redisClient.get(`auth_${token}`);
 
     const filter = {
       _id: ObjectId(req.params.id),
-      userId = ObjectId(user._id.toString()),
     }
+    const userId = ObjectId(user._id.toString())
     const file = await dbClient.nbFiles().findOne(filter);
-    if (!file || file.isPublic === false && file.userId.toString() !== user.id) {
+    if (!file || file.isPublic === false && (file.userId.toString() !== userId)) {
       res.status(404).json({ error: 'Not found' });
       return;
     }
-    
   
-    if (file === 'folder') {
+    if (file.type === 'folder') {
       res.status(400).json({ error: "A folder doesn't have content" });
       return;
     }
+
+    
   }
 }
