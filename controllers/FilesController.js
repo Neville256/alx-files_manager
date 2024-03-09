@@ -7,8 +7,12 @@ import { promises as fsPromises } from 'fs';
 
 export default class FilesController {
   static async postUpload(req, res) {
-  
-    const { name, type, parentId, isPublic, data } = req.body;
+    const token = req.headers.authorization;
+    const name = req.body.name;
+    const type = req.body.type;
+    const parentId = req.body.parentId ? req.body.parentId : 0;
+    const isPublic = req.body.isPublic ? req.body.isPublic : false;
+    const base64 = req.body.data ? req.body.data : ''; //for image and file
     const validFiles = [ 'folder', 'file', 'image' ];
 
     const user = await redisClient.get(`auth_${token}`);
@@ -25,7 +29,7 @@ export default class FilesController {
       return;
     }
 	
-    if (!data && type !== folder) {
+    if (!req.body.data && type !== 'folder') {
       res.status(400).json({error: 'Missing data'});
       return;
     }
@@ -55,16 +59,70 @@ export default class FilesController {
 
     if (type === 'folder') {
       const createdFile = await (await dbClient.nbUsers()).insertOne(newFile);
-      return res.status(201).json(createdFile);
+      res.status(201).json(createdFile);
+     // return;
     } else {
       const filePath = path.join(relPath, uuidv4());
-      await fsPromises.writeFile(filePath, Buffer.from(data, 'base64'));
+      await fsPromises.writeFile(filePath, Buffer.from(base64, 'base64'));
       
       newFile.localPath = filePath;
       const createdFile = await (await dbClient.nbUsers()).insertOne(newFile);
-      return res.status(201).json(createdFile);
+      res.status(201).json(createdFile);
     }
+  }
+  
+  static async getShow(req, res) {
+    const token = req.headers.authorization;
+    const user = await redisClient.get(`auth_${token}`);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized'});
+      return;
+    }
+    const doc = await dbClient.nbFiles().findOne({
+      _id: ObjectId(req.params.id),
+      userId = ObjectId(user._id.toString()),
+    }
+    if (!doc) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.status(201).json({doc})
+  }
 
+  static async getIndex(req, res) {
+    const token = req.headers.authorization;
+    const user = await redisClient.get(`auth_${token}`);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized'});
+      return;
+    }
+    const parentId = req.query.parentId;
+    const pageNo = parseInt(req.query.page) || 0; //equals to pageNumber
+    const pageSize = 20;
+    const startIndex = (pageNo) * pageSize;
+
+    const filter = {
+      userId: user._id,
+      parentId: parentId ? parentId : 0,
+    }
     
+    const paginated = await dbClient.nbFiles().aggregate([
+      { $match: filter },
+      { $skip: startIndex },
+      { $limit: pageSize },
+      {
+        $project: {
+	  _id: 0,
+	  id: '$_id',
+	  userId: '$userId',
+	  name: '$name',
+	  type: '$type',
+	  isPublic: '$isPublic',
+	  parentId: '$parentId',
+	},
+      },
+    ]).toArray();
+
+    res.status(200).json(paginated);
   }
 }

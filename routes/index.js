@@ -58,10 +58,6 @@ const routeController = (app) => {
     FilesController.getFile(req, res);
   });
 
-  //task 5
-  router.post('/files', (req, res) => {
-    FilesController.postUpload(req, res);
-  });
   
 };
 
