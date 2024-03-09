@@ -125,4 +125,31 @@ export default class FilesController {
 
     res.status(200).json(paginated);
   }
+
+  static async putPublish(req, res) {
+    const token = req.headers.authorization;
+    const user = await redisClient.get(`auth_${token}`);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized'});
+      return;
+    }
+
+    const filter = {
+      _id: ObjectId(req.params.id),
+      userId = ObjectId(user._id.toString()),
+    }
+    const doc = await dbClient.nbFiles().findOne(doc);
+    if (!doc) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+
+    await dbClient.nbFiles().updateOne( doc,
+	    { $set: { isPublic: 'true' } });
+
+    res.status(200).json({doc});
+  }
+
+  static async putUnpublish(req, res) {
+    }
 }
