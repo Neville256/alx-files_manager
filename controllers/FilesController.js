@@ -3,6 +3,7 @@ import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fsPromises } from 'fs';
+import mime from 'mime';
 
 
 export default class FilesController {
@@ -80,8 +81,8 @@ export default class FilesController {
     }
     const doc = await dbClient.nbFiles().findOne({
       _id: ObjectId(req.params.id),
-      userId = ObjectId(user._id.toString()),
-    }
+      userId: ObjectId(user._id.toString()),
+    });
     if (!doc) {
       res.status(404).json({ error: 'Not found' });
       return;
@@ -189,7 +190,7 @@ export default class FilesController {
       res.status(400).json({ error: "A folder doesn't have content" });
       return;
     }
-
-    
+    const fileType = mime.getType('file.name');
+    file.setContentType(fileType);
   }
 }
